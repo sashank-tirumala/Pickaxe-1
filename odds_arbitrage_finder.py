@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 import time
 import json
 import logging
+import os
+from betslip import BetslipURLGenerator
 
 def power_devig(odds_list):
     """
@@ -85,6 +87,8 @@ class OddsArbitrageFinder:
         self.all_opportunities = []
         self.all_plus_ev = []
         self.all_player_props = {}  # Add this to store player props
+        self.url_generator = BetslipURLGenerator()
+        self.state = state.lower()
         
         
     
@@ -382,12 +386,19 @@ class OddsArbitrageFinder:
                                 if market_key not in markets:
                                     markets[market_key] = []
                                 
+                                # Extract IDs from existing link if available
+                                book_name, params = self.url_generator.parse_existing_url(outcome.get('link', ''))
+                                
                                 markets[market_key].append({
                                     'bookmaker': bookmaker['title'],
                                     'team': outcome['name'],
                                     'price': outcome.get('price', 0),
                                     'point': point,
-                                    'link': bookmaker.get('link', '')
+                                    'link': outcome.get('link', ''),
+                                    'market_id': params.get('market_id'),
+                                    'selection_id': params.get('selection_id'),
+                                    'event_id': params.get('event_id'),
+                                    'outcome_id': params.get('outcome_id')
                                 })
                     else:
                         # Handle standard markets as before
@@ -397,12 +408,18 @@ class OddsArbitrageFinder:
                             markets[market_key] = []
                         
                         for outcome in market['outcomes']:
+                            book_name, params = self.url_generator.parse_existing_url(outcome.get('link', ''))
+                            
                             markets[market_key].append({
                                 'bookmaker': bookmaker['title'],
                                 'team': outcome['name'],
                                 'price': outcome.get('price', 0),
                                 'point': outcome.get('point', None),
-                                'link': bookmaker.get('link', '')
+                                'link': outcome.get('link', ''),
+                                'market_id': params.get('market_id'),
+                                'selection_id': params.get('selection_id'),
+                                'event_id': params.get('event_id'),
+                                'outcome_id': params.get('outcome_id')
                             })
         
         return markets
@@ -1064,6 +1081,76 @@ class OddsArbitrageFinder:
             odds1_class = 'odds-negative' if row['team1_odds'] < 0 else 'odds-positive'
             odds2_class = 'odds-negative' if row['team2_odds'] < 0 else 'odds-positive'
             
+            # Parse existing links to get parameters
+            book1_name, params1 = self.url_generator.parse_existing_url(row['team1_link'])
+            book2_name, params2 = self.url_generator.parse_existing_url(row['team2_link'])
+            
+            # Generate new betslip URLs based on book
+            book1_link = row['team1_link']  # Default to original link
+            book2_link = row['team2_link']  # Default to original link
+            
+            # Generate book-specific betslip URLs
+            if book1_name == 'betrivers' and params1.get('market_id') and params1.get('selection_id'):
+                book1_link = self.url_generator.generate_betrivers_url(
+                    params1['market_id'], 
+                    params1['selection_id'], 
+                    self.state
+                )
+            elif book1_name == 'fanduel' and params1.get('market_id') and params1.get('selection_id'):
+                book1_link = self.url_generator.generate_fanduel_url(
+                    params1['market_id'], 
+                    params1['selection_id'], 
+                    self.state
+                )
+            elif book1_name == 'betmgm' and params1.get('event_id') and params1.get('selection_id'):
+                book1_link = self.url_generator.generate_betmgm_url(
+                    params1['event_id'], 
+                    params1['selection_id'], 
+                    self.state
+                )
+            elif book1_name == 'caesars' and params1.get('selection_id'):
+                book1_link = self.url_generator.generate_caesars_url(
+                    params1['selection_id'], 
+                    self.state
+                )
+            elif book1_name == 'draftkings' and params1.get('event_id') and params1.get('outcome_id'):
+                book1_link = self.url_generator.generate_draftkings_url(
+                    params1['event_id'], 
+                    params1['outcome_id'], 
+                    self.state
+                )
+                
+            # Repeat for book 2
+            if book2_name == 'betrivers' and params2.get('market_id') and params2.get('selection_id'):
+                book2_link = self.url_generator.generate_betrivers_url(
+                    params2['market_id'], 
+                    params2['selection_id'], 
+                    self.state
+                )
+            elif book2_name == 'fanduel' and params2.get('market_id') and params2.get('selection_id'):
+                book2_link = self.url_generator.generate_fanduel_url(
+                    params2['market_id'], 
+                    params2['selection_id'], 
+                    self.state
+                )
+            elif book2_name == 'betmgm' and params2.get('event_id') and params2.get('selection_id'):
+                book2_link = self.url_generator.generate_betmgm_url(
+                    params2['event_id'], 
+                    params2['selection_id'], 
+                    self.state
+                )
+            elif book2_name == 'caesars' and params2.get('selection_id'):
+                book2_link = self.url_generator.generate_caesars_url(
+                    params2['selection_id'], 
+                    self.state
+                )
+            elif book2_name == 'draftkings' and params2.get('event_id') and params2.get('outcome_id'):
+                book2_link = self.url_generator.generate_draftkings_url(
+                    params2['event_id'], 
+                    params2['outcome_id'], 
+                    self.state
+                )
+            
             html += f"""
                 <tr class="{row_class}">
                     <td><span class="type-badge {badge_class}">{row['opportunity_type']}</span></td>
@@ -1074,11 +1161,11 @@ class OddsArbitrageFinder:
                     <td>{row['game']}</td>
                     <td>{row['commence_time']}</td>
                     <td>{row['team1_name']} {team1_point}</td>
-                    <td><a href="{row['team1_link']}" target="_blank">{row['team1_book']}</a></td>
+                    <td><a href="{book1_link}" target="_blank" class="betslip-link">{row['team1_book']}</a></td>
                     <td class="{odds1_class}">{row['team1_odds']}</td>
                     <td class="stake">{row['team1_stake']:.1f}%</td>
                     <td>{row['team2_name']} {team2_point}</td>
-                    <td><a href="{row['team2_link']}" target="_blank">{row['team2_book']}</a></td>
+                    <td><a href="{book2_link}" target="_blank" class="betslip-link">{row['team2_book']}</a></td>
                     <td class="{odds2_class}">{row['team2_odds']}</td>
                     <td class="stake">{row['team2_stake']:.1f}%</td>
                     <td class="{profit_class}">{row['profit_percentage']:.2f}%</td>
@@ -1651,9 +1738,9 @@ class OddsArbitrageFinder:
         </head>
          <body>
             <div class="tabs">
-                <button class="tab-button active" onclick="showTab('opportunities')">Opportunities</button>
-                <button class="tab-button" onclick="showTab('odds-screen')">Odds Screen</button>
+                <button class="tab-button active" onclick="showTab('opportunities')">Arbitrage</button>
                 <button class="tab-button" onclick="showTab('plus-ev')">+EV Bets</button>
+                <button class="tab-button" onclick="showTab('odds-screen')">Odds Screen</button>
             </div>
             
             <div id="opportunities" class="tab-content active">
@@ -1698,7 +1785,8 @@ class OddsArbitrageFinder:
 
 def main():
     # Replace with your API key
-    api_key = '1e926844efc2bdb47a3552415b65b3cd'
+    with open('key.txt', 'r') as file:
+        api_key = file.read().strip()
     
     arbitrage_finder = OddsArbitrageFinder(api_key)
     arbitrage_table = arbitrage_finder.generate_arbitrage_table()
@@ -1712,13 +1800,6 @@ def main():
         f.write(html_content)
     print(f"\nHTML results saved to {html_filename}")
     
-    # Still save CSV for data analysis
-    if not arbitrage_table.empty:
-        csv_filename = "arbitrage_opportunities.csv"
-        arbitrage_table.to_csv(csv_filename, index=False)
-        print(f"CSV results saved to {csv_filename}")
-    else:
-        print("\nNo arbitrage opportunities found.")
 
 if __name__ == "__main__":
     main()
