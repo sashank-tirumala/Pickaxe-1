@@ -366,6 +366,31 @@ class OddsArbitrageFinder:
             
         except (ZeroDivisionError, ValueError):
             return (50.0, 50.0)
+        
+    def generate_bookmaker_filter(self):
+        """Generate HTML for bookmaker filter section"""
+        bookmakers = sorted(self.regions['us'])  # Get US bookmakers
+        
+        html = """
+        <div class="bookmaker-filter">
+            <div class="filter-label">Filter Bookmakers:</div>
+            <div class="bookmaker-checkboxes">
+        """
+        
+        for book in bookmakers:
+            html += f"""
+                <label class="bookmaker-checkbox">
+                    <input type="checkbox" class="book-filter" value="{book.lower()}" checked>
+                    {book}
+                </label>
+            """
+            
+        html += """
+            </div>
+        </div>
+        """
+        
+        return html
 
     def process_markets(self, bookmakers, market_type):
         """Process markets from bookmakers data with proper handling of alternate lines"""
@@ -713,7 +738,6 @@ class OddsArbitrageFinder:
                     pinnacle_odds.append(odds)
             
             if not pinnacle_odds or len(pinnacle_odds) != 2:
-                logger.info("No Pinnacle odds found for moneyline")
                 continue
             
             # Sort Pinnacle odds by team name for consistency
@@ -762,12 +786,7 @@ class OddsArbitrageFinder:
                         
                         ev_percentage = (decimal_odds * fair_prob - 1) * 100
                         
-                        logger.info(f"\nChecking {odds['bookmaker']} odds for {odds['team']}")
-                        logger.info(f"Book odds: {american_odds}")
-                        logger.info(f"Fair odds: {fair_odd}")
-                        logger.info(f"Book prob: {implied_prob:.4f}")
-                        logger.info(f"Fair prob: {fair_prob:.4f}")
-                        logger.info(f"EV%: {ev_percentage:.2f}%")
+                      
                         
                         if ev_percentage >= self.ev_threshold:
                             logger.info(f"Found +EV opportunity!")
@@ -788,12 +807,10 @@ class OddsArbitrageFinder:
         # Check player props
         try:
             if game['id'] in self.all_player_props:
-                logger.info("\nChecking stored player props")
                 player_props = self.all_player_props[game['id']]['props']
-                logger.info(f"Found {len(player_props)} bookmakers with props")
                 
                 prop_markets = self.process_player_props(player_props, game['sport_key'])
-                logger.info(f"Processed {len(prop_markets)} prop markets")
+                
                 
                 for market_key, market_odds in prop_markets.items():
                     logger.info(f"\nAnalyzing market: {market_key}")
@@ -828,8 +845,6 @@ class OddsArbitrageFinder:
                             if key not in under_odds or odds['price'] > under_odds[key]['price']:
                                 under_odds[key] = odds
                     
-                    logger.info(f"Found {len(over_odds)} over lines and {len(under_odds)} under lines")
-                    logger.info(f"Found Pinnacle odds for {len(pinnacle_odds['over'])} over and {len(pinnacle_odds['under'])} under lines")
                     
                     # Check each line where we have both Pinnacle odds
                     common_points = set(pinnacle_odds['over'].keys()) & set(pinnacle_odds['under'].keys())
@@ -898,9 +913,11 @@ class OddsArbitrageFinder:
         if not opportunities:
             return """<div class="no-opps">No +EV opportunities found.</div>"""
             
-        html = """
+        # html = self.generate_bookmaker_filter()
+        
+        html += """
         <div class="container">
-            <table>
+            <table id="plus-ev-table">
                 <tr>
                     <th>Sport</th>
                     <th>Market</th>
@@ -931,10 +948,11 @@ class OddsArbitrageFinder:
                     <td class="{fair_odds_class}">{opp['fair_odds']}</td>
                     <td class="ev-positive">{opp['ev_percentage']}%</td>
                 </tr>"""
-                
+        
         html += """
             </table>
         </div>"""
+        
         return html
 
     def generate_arbitrage_table(self):
@@ -1048,9 +1066,10 @@ class OddsArbitrageFinder:
         
         df = df.sort_values('hold_percentage', ascending=True)
         
+        # Initialize html string
         html = """
         <div class="container">
-            <table>
+            <table id="opportunities-table">
                 <tr>
                     <th>Type</th>
                     <th>Hold%</th>
@@ -1081,75 +1100,36 @@ class OddsArbitrageFinder:
             odds1_class = 'odds-negative' if row['team1_odds'] < 0 else 'odds-positive'
             odds2_class = 'odds-negative' if row['team2_odds'] < 0 else 'odds-positive'
             
-            # Parse existing links to get parameters
             book1_name, params1 = self.url_generator.parse_existing_url(row['team1_link'])
             book2_name, params2 = self.url_generator.parse_existing_url(row['team2_link'])
             
-            # Generate new betslip URLs based on book
-            book1_link = row['team1_link']  # Default to original link
-            book2_link = row['team2_link']  # Default to original link
+            book1_link = row['team1_link']
+            book2_link = row['team2_link']
             
-            # Generate book-specific betslip URLs
-            if book1_name == 'betrivers' and params1.get('market_id') and params1.get('selection_id'):
-                book1_link = self.url_generator.generate_betrivers_url(
-                    params1['market_id'], 
-                    params1['selection_id'], 
-                    self.state
-                )
-            elif book1_name == 'fanduel' and params1.get('market_id') and params1.get('selection_id'):
-                book1_link = self.url_generator.generate_fanduel_url(
-                    params1['market_id'], 
-                    params1['selection_id'], 
-                    self.state
-                )
-            elif book1_name == 'betmgm' and params1.get('event_id') and params1.get('selection_id'):
-                book1_link = self.url_generator.generate_betmgm_url(
-                    params1['event_id'], 
-                    params1['selection_id'], 
-                    self.state
-                )
-            elif book1_name == 'caesars' and params1.get('selection_id'):
-                book1_link = self.url_generator.generate_caesars_url(
-                    params1['selection_id'], 
-                    self.state
-                )
-            elif book1_name == 'draftkings' and params1.get('event_id') and params1.get('outcome_id'):
-                book1_link = self.url_generator.generate_draftkings_url(
-                    params1['event_id'], 
-                    params1['outcome_id'], 
-                    self.state
-                )
-                
-            # Repeat for book 2
-            if book2_name == 'betrivers' and params2.get('market_id') and params2.get('selection_id'):
-                book2_link = self.url_generator.generate_betrivers_url(
-                    params2['market_id'], 
-                    params2['selection_id'], 
-                    self.state
-                )
-            elif book2_name == 'fanduel' and params2.get('market_id') and params2.get('selection_id'):
-                book2_link = self.url_generator.generate_fanduel_url(
-                    params2['market_id'], 
-                    params2['selection_id'], 
-                    self.state
-                )
-            elif book2_name == 'betmgm' and params2.get('event_id') and params2.get('selection_id'):
-                book2_link = self.url_generator.generate_betmgm_url(
-                    params2['event_id'], 
-                    params2['selection_id'], 
-                    self.state
-                )
-            elif book2_name == 'caesars' and params2.get('selection_id'):
-                book2_link = self.url_generator.generate_caesars_url(
-                    params2['selection_id'], 
-                    self.state
-                )
-            elif book2_name == 'draftkings' and params2.get('event_id') and params2.get('outcome_id'):
-                book2_link = self.url_generator.generate_draftkings_url(
-                    params2['event_id'], 
-                    params2['outcome_id'], 
-                    self.state
-                )
+            # Process URLs with the state parameter
+            if book1_name:
+                if book1_name == 'betrivers' and params1.get('market_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_betrivers_url(params1['market_id'], params1['selection_id'], self.state)
+                elif book1_name == 'fanduel' and params1.get('market_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_fanduel_url(params1['market_id'], params1['selection_id'], self.state)
+                elif book1_name == 'betmgm' and params1.get('event_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_betmgm_url(params1['event_id'], params1['selection_id'], self.state)
+                elif book1_name == 'caesars' and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_caesars_url(params1['selection_id'], self.state)
+                elif book1_name == 'draftkings' and params1.get('event_id') and params1.get('outcome_id'):
+                    book1_link = self.url_generator.generate_draftkings_url(params1['event_id'], params1['outcome_id'], self.state)
+            
+            if book2_name:
+                if book2_name == 'betrivers' and params2.get('market_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_betrivers_url(params2['market_id'], params2['selection_id'], self.state)
+                elif book2_name == 'fanduel' and params2.get('market_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_fanduel_url(params2['market_id'], params2['selection_id'], self.state)
+                elif book2_name == 'betmgm' and params2.get('event_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_betmgm_url(params2['event_id'], params2['selection_id'], self.state)
+                elif book2_name == 'caesars' and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_caesars_url(params2['selection_id'], self.state)
+                elif book2_name == 'draftkings' and params2.get('event_id') and params2.get('outcome_id'):
+                    book2_link = self.url_generator.generate_draftkings_url(params2['event_id'], params2['outcome_id'], self.state)
             
             html += f"""
                 <tr class="{row_class}">
@@ -1177,6 +1157,52 @@ class OddsArbitrageFinder:
                 Last updated: {df['timestamp'].iloc[0]}
             </div>
         </div>"""
+        
+        return html
+
+    def generate_plus_ev_html(self, opportunities):
+        if not opportunities:
+            return """<div class="no-opps">No +EV opportunities found.</div>"""
+        
+        # Initialize html string
+        html = """
+        <div class="container">
+            <table id="plus-ev-table">
+                <tr>
+                    <th>Sport</th>
+                    <th>Market</th>
+                    <th>Point</th>
+                    <th>Game</th>
+                    <th>Time</th>
+                    <th>Team</th>
+                    <th>Book</th>
+                    <th>Odds</th>
+                    <th>Fair Odds</th>
+                    <th>+EV%</th>
+                </tr>"""
+        
+        for opp in sorted(opportunities, key=lambda x: x['ev_percentage'], reverse=True):
+            odds_class = 'odds-negative' if opp['odds'] < 0 else 'odds-positive'
+            fair_odds_class = 'odds-negative' if opp['fair_odds'] < 0 else 'odds-positive'
+            
+            html += f"""
+                <tr class="plus-ev">
+                    <td>{opp['sport']}</td>
+                    <td>{opp['market_type']}</td>
+                    <td>{opp['market_point'] if opp['market_point'] else '-'}</td>
+                    <td>{opp['game']}</td>
+                    <td>{opp['commence_time']}</td>
+                    <td>{opp['team']}</td>
+                    <td><a href="{opp['link']}" target="_blank">{opp['bookmaker']}</a></td>
+                    <td class="{odds_class}">{opp['odds']}</td>
+                    <td class="{fair_odds_class}">{opp['fair_odds']}</td>
+                    <td class="ev-positive">{opp['ev_percentage']}%</td>
+                </tr>"""
+        
+        html += """
+            </table>
+        </div>"""
+        
         return html
     
     def remove_vig(self, odds1, odds2):
@@ -1565,8 +1591,7 @@ class OddsArbitrageFinder:
         return html
     
     def generate_html(self, df):
-        """Generate HTML with both opportunities and odds screen tabs"""
-        # Start with the basic HTML structure
+        # Previous style and structure remains the same until the body section
         html = """
         <!DOCTYPE html>
         <html>
@@ -1574,12 +1599,8 @@ class OddsArbitrageFinder:
             <title>Sports Betting Dashboard</title>
             <style>
                 .plus-ev { background-color: #e8f5e9; }
-
                 .plus-ev:hover { background-color: #c8e6c9; }
-                .ev-positive {
-                    color: #28a745;
-                    font-weight: bold;
-                }
+                .ev-positive { color: #28a745; font-weight: bold; }
                 body { 
                     font-family: 'Consolas', 'Monaco', monospace;
                     padding: 30px;
@@ -1637,18 +1658,9 @@ class OddsArbitrageFinder:
                     font-weight: bold;
                     letter-spacing: 0.5px;
                 }
-                .arbitrage-badge { 
-                    background-color: #28a745; 
-                    color: white;
-                }
-                .low-hold-badge { 
-                    background-color: #ffc107; 
-                    color: black;
-                }
-                .profit-positive { 
-                    color: #28a745;
-                    font-weight: bold;
-                }
+                .arbitrage-badge { background-color: #28a745; color: white; }
+                .low-hold-badge { background-color: #ffc107; color: black; }
+                .profit-positive { color: #28a745; font-weight: bold; }
                 .profit-zero { color: #666; }
                 .stake { color: #2c5282; }
                 .odds-negative { color: #dc3545; }
@@ -1682,8 +1694,6 @@ class OddsArbitrageFinder:
                 .tab-content.active {
                     display: block;
                 }
-                
-                /* Odds screen specific styles */
                 .odds-screen {
                     background: white;
                     border-radius: 8px;
@@ -1699,88 +1709,318 @@ class OddsArbitrageFinder:
                     border-radius: 4px;
                     border: 1px solid #ddd;
                 }
-                .game-card {
-                    border: 1px solid #eee;
+                .bookmaker-filter {
+                    background: white;
+                    border-radius: 8px;
+                    padding: 15px;
                     margin-bottom: 20px;
-                    border-radius: 4px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }
-                .game-header {
-                    padding: 10px;
-                    background: #f8f9fa;
-                    border-bottom: 1px solid #eee;
-                }
-                .sport-badge {
-                    display: inline-block;
-                    padding: 2px 6px;
-                    background: #2c5282;
-                    color: white;
-                    border-radius: 3px;
-                    font-size: 12px;
-                    margin-right: 10px;
-                }
-                .markets-container {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                    gap: 20px;
-                    padding: 20px;
-                }
-                .market-section {
-                    border: 1px solid #eee;
-                    border-radius: 4px;
-                }
-                .market-header {
-                    padding: 8px;
-                    background: #f8f9fa;
-                    border-bottom: 1px solid #eee;
+                .filter-label {
                     font-weight: bold;
+                    margin-bottom: 10px;
+                }
+                .bookmaker-checkboxes {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                }
+                .bookmaker-checkbox {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    padding: 5px 10px;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                .bookmaker-checkbox:hover {
+                    background: #e9ecef;
+                }
+                .book-filter { margin: 0; }
+                .odds-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                }
+                .odds-table th, .odds-table td {
+                    padding: 6px;
+                    text-align: center;
+                    border: 1px solid #ddd;
+                    white-space: nowrap;
+                }
+                .game-info {
+                    text-align: left;
+                    background: #f8f9fa;
+                    position: sticky;
+                    left: 0;
+                    z-index: 2;
+                    padding: 8px;
+                }
+                .book-column {
+                    min-width: 70px;
+                    font-size: 12px;
+                    position: sticky;
+                    top: 0;
+                    background: #f5f5f5;
+                    z-index: 1;
+                }
+                .game-datetime {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                    margin-bottom: 2px;
+                }
+                .game-date { font-weight: bold; color: #2c5282; }
+                .game-time { font-size: 11px; color: #666; }
+                .game-name { font-weight: 600; font-size: 13px; }
+                .odds-cell { padding: 4px 6px; }
+                .team-odds {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                    padding: 2px;
+                }
+                .odds {
+                    font-weight: bold;
+                    text-decoration: none;
+                    font-size: 14px;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                }
+                .point { font-size: 12px; color: #666; margin-right: 4px; }
+                .fair-odds-column {
+                    min-width: 70px;
+                    font-size: 12px;
+                    position: sticky;
+                    top: 0;
+                    background: #f5f5f5;
+                    z-index: 1;
+                    border-right: 2px solid #ddd;
+                }
+                .fair-odds-cell {
+                    background-color: #f8f9fa;
+                    border-right: 2px solid #ddd;
+                }
+                .fair-odds-value {
+                    font-style: italic;
+                    opacity: 0.9;
+                }
+                .value-odds {
+                    background-color: #c3e6cb;
+                    box-shadow: 0 0 0 1px #28a745;
                 }
             </style>
         </head>
-         <body>
+        <body>"""
+        
+        # Add the bookmaker filter
+        html += self.generate_bookmaker_filter()
+        
+        # Add the tabs
+        html += """
             <div class="tabs">
-                <button class="tab-button active" onclick="showTab('opportunities')">Arbitrage</button>
-                <button class="tab-button" onclick="showTab('plus-ev')">+EV Bets</button>
-                <button class="tab-button" onclick="showTab('odds-screen')">Odds Screen</button>
-            </div>
+                <button class="tab-button active" data-tab="opportunities">Arbitrage</button>
+                <button class="tab-button" data-tab="plus-ev">+EV Bets</button>
+                <button class="tab-button" data-tab="odds-screen">Odds Screen</button>
+            </div>"""
             
+        # Generate all content
+        opportunities_content = self.generate_opportunities_html(df)
+        plus_ev_content = self.generate_plus_ev_html(self.all_plus_ev)
+        odds_screen_content = self.generate_odds_screen_html(self.all_odds_data)
+        
+        # Add the content sections
+        html += f"""
             <div id="opportunities" class="tab-content active">
-                [OPPORTUNITIES_CONTENT]
+                {opportunities_content}
             </div>
             
             <div id="odds-screen" class="tab-content">
-                [ODDS_SCREEN_CONTENT]
+                {odds_screen_content}
             </div>
             
             <div id="plus-ev" class="tab-content">
-                [PLUS_EV_CONTENT]
-            </div>
-            
+                {plus_ev_content}
+            </div>"""
+        
+        # Add the JavaScript
+        html += """
             <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    initializeTabs();
+                    initializeBookmakerFilters();
+                    initializeOddsScreenFilters();
+                    applyGlobalFilters();
+                });
+                
+                function initializeBookmakerFilters() {
+                    const filters = document.querySelectorAll('.book-filter');
+                    filters.forEach(checkbox => {
+                        checkbox.removeEventListener('change', applyGlobalFilters);
+                        checkbox.addEventListener('change', applyGlobalFilters);
+                    });
+                }
+                
+                function applyGlobalFilters() {
+                    const selectedBooks = Array.from(document.querySelectorAll('.book-filter:checked'))
+                        .map(checkbox => checkbox.value.toLowerCase());
+                    
+                    // Apply to opportunities table
+                    const opportunitiesTable = document.getElementById('opportunities-table');
+                    if (opportunitiesTable) {
+                        opportunitiesTable.querySelectorAll('tr:not(:first-child)').forEach(row => {
+                            const book1Cell = row.querySelector('td:nth-child(9)');
+                            const book2Cell = row.querySelector('td:nth-child(13)');
+                            
+                            if (book1Cell && book2Cell) {
+                                const book1 = book1Cell.textContent.toLowerCase().trim();
+                                const book2 = book2Cell.textContent.toLowerCase().trim();
+                                row.style.display = (selectedBooks.includes(book1) && selectedBooks.includes(book2)) ? '' : 'none';
+                            }
+                        });
+                    }
+                    
+                    // Apply to plus-EV table
+                    const plusEvTable = document.getElementById('plus-ev-table');
+                    if (plusEvTable) {
+                        plusEvTable.querySelectorAll('tr:not(:first-child)').forEach(row => {
+                            const bookCell = row.querySelector('td:nth-child(7)');
+                            if (bookCell) {
+                                const book = bookCell.textContent.toLowerCase().trim();
+                                row.style.display = selectedBooks.includes(book) ? '' : 'none';
+                            }
+                        });
+                    }
+                    
+                    // Apply to odds screen
+                    const oddsCells = document.querySelectorAll('.odds-cell');
+                    oddsCells.forEach(cell => {
+                        const book = cell.getAttribute('data-book')?.toLowerCase();
+                        if (book) {
+                            cell.style.display = selectedBooks.includes(book) ? '' : 'none';
+                        }
+                    });
+                }
+                
+                function initializeTabs() {
+                    document.querySelectorAll('.tab-button').forEach(button => {
+                        button.addEventListener('click', function() {
+                            showTab(this.getAttribute('data-tab'));
+                        });
+                    });
+                }
+                
                 function showTab(tabId) {
                     document.querySelectorAll('.tab-content').forEach(tab => {
                         tab.classList.remove('active');
                     });
+                    
                     document.querySelectorAll('.tab-button').forEach(button => {
                         button.classList.remove('active');
                     });
                     
                     document.getElementById(tabId).classList.add('active');
-                    event.target.classList.add('active');
+                    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+                }
+                
+                function initializeOddsScreenFilters() {
+                    const sportFilter = document.getElementById('sportFilter');
+                    const betTypeFilter = document.getElementById('betTypeFilter');
+                    
+                    if (sportFilter) {
+                        sportFilter.removeEventListener('change', updateOddsDisplay);
+                        sportFilter.addEventListener('change', updateOddsDisplay);
+                    }
+                    
+                    if (betTypeFilter) {
+                        betTypeFilter.removeEventListener('change', updateOddsDisplay);
+                        betTypeFilter.addEventListener('change', updateOddsDisplay);
+                    }
+                }
+                
+                function updateOddsDisplay() {
+                    const sport = document.getElementById('sportFilter').value;
+                    const marketType = document.getElementById('betTypeFilter').value;
+                    
+                    document.querySelectorAll('.game-row').forEach(row => {
+                        const showSport = sport === 'all' || row.dataset.sport === sport;
+                        row.style.display = showSport ? '' : 'none';
+                        
+                        if (showSport) {
+                            try {
+                                const markets = JSON.parse(row.getAttribute('data-markets'));
+                                const oddsCells = row.querySelectorAll('td:not(.game-info):not(.fair-odds-cell)');
+                                
+                                const fairOddsCell = row.querySelector('.fair-odds-cell');
+                                if (fairOddsCell) {
+                                    fairOddsCell.style.display = marketType === 'h2h' ? '' : 'none';
+                                }
+                                
+                                oddsCells.forEach(cell => {
+                                    if (markets[marketType]?.books?.[cell.getAttribute('data-book')]) {
+                                        updateOddsCell(cell, markets[marketType].books[cell.getAttribute('data-book')], marketType);
+                                    } else {
+                                        cell.innerHTML = '-';
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('Error updating odds:', e);
+                            }
+                        }
+                    });
+                    
+                    // Reapply bookmaker filters after updating odds display
+                    applyGlobalFilters();
+                }
+                
+                function updateOddsCell(cell, outcomes, marketType) {
+                    outcomes.sort((a, b) => a.team.localeCompare(b.team));
+                    let html = '';
+                    
+                    outcomes.forEach(outcome => {
+                        const oddsClass = outcome.american_odds < 0 ? 'odds-negative' : 'odds-positive';
+                        
+                        if (marketType === 'spreads') {
+                            const point = outcome.point;
+                            html += `
+                                <div class="team-odds">
+                                    <span class="point">${point >= 0 ? '+' : ''}${point}</span>
+                                    <a href="${outcome.link}" class="odds ${oddsClass}" target="_blank">
+                                        ${outcome.american_odds}
+                                    </a>
+                                </div>`;
+                        } else if (marketType === 'totals') {
+                            const overUnder = outcome.team.toLowerCase().includes('over') ? 'O' : 'U';
+                            const point = outcome.point;
+                            html += `
+                                <div class="team-odds">
+                                    <span class="point">${overUnder} ${point}</span>
+                                    <a href="${outcome.link}" class="odds ${oddsClass}" target="_blank">
+                                        ${outcome.american_odds}
+                                    </a>
+                                </div>`;
+                        } else {
+                            html += `
+                                <div class="team-odds">
+                                    <a href="${outcome.link}" class="odds ${oddsClass}" target="_blank">
+                                        ${outcome.american_odds}
+                                    </a>
+                                </div>`;
+                        }
+                    });
+                    
+                    cell.innerHTML = html || '-';
                 }
             </script>
         </body>
-        </html>
-        """
-        
-        opportunities_html = self.generate_opportunities_html(df)
-        odds_screen_html = self.generate_odds_screen_html(self.all_odds_data)
-        plus_ev_html = self.generate_plus_ev_html(self.all_plus_ev)
-        
-        html = html.replace('[OPPORTUNITIES_CONTENT]', opportunities_html)
-        html = html.replace('[ODDS_SCREEN_CONTENT]', odds_screen_html)
-        html = html.replace('[PLUS_EV_CONTENT]', plus_ev_html)
+        </html>"""
         
         return html
+    
+
 
 
 def main():
