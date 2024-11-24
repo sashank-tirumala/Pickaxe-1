@@ -2020,6 +2020,7 @@ class OddsArbitrageFinder:
         
         return html
     
+   
 
 
 

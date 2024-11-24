@@ -1,37 +1,23 @@
 class BetslipURLGenerator:
-    """
-    Utility class to generate betslip URLs for different sportsbooks
-    """
+    @staticmethod
+    def generate_betrivers_url(event_id, market_id, outcome_id, state='md'):
+        return f"https://{state}.betrivers.com/?page=sportsbook#event/{event_id}?betsource=direct&market={market_id}&outcome={outcome_id}"
     
     @staticmethod
-    def generate_betrivers_url(market_id, selection_id, state='md'):
-        """Generate BetRivers betslip URL"""
-        # Format: https://md.betrivers.com/?page=sportsbook#event/1020832252?coupon=single|3575593386|
-        return f"https://{state}.betrivers.com/?page=sportsbook#event/{market_id}?coupon=single|{selection_id}|"
+    def generate_fanduel_url(event_id, market_id, outcome_id, state='md'):
+        return f"https://sportsbook.fanduel.com/{state}/selection/{event_id}-{market_id}?tab=all&btag={outcome_id}"
     
     @staticmethod
-    def generate_fanduel_url(market_id, selection_id, state='md'):
-        """Generate FanDuel betslip URL"""
-        # Format: https://account.md.sportsbook.fanduel.com/sportsbook/addToBetslip?marketId[0]=42.465617287&selectionId[0]=61449341
-        return f"https://account.{state}.sportsbook.fanduel.com/sportsbook/addToBetslip?marketId[0]={market_id}&selectionId[0]={selection_id}"
+    def generate_betmgm_url(event_id, market_id, outcome_id, state='md'):
+        return f"https://sports.{state}.betmgm.com/en/sports/event/{event_id}?market={market_id}&selection={outcome_id}"
     
     @staticmethod
-    def generate_betmgm_url(event_id, selection_id, state='md'):
-        """Generate BetMGM betslip URL"""
-        # Format: https://sports.md.betmgm.com/en/sports/events/16627204/?options=-844684506&wm=7096743
-        return f"https://sports.{state}.betmgm.com/en/sports/events/{event_id}/?options={selection_id}"
+    def generate_caesars_url(event_id, market_id, outcome_id, state='md'):
+        return f"https://sportsbook.caesars.com/us/{state}/bet?id={event_id}&market={market_id}&selection={outcome_id}"
     
     @staticmethod
-    def generate_caesars_url(selection_id, state='md'):
-        """Generate Caesars betslip URL"""
-        # Format: https://sportsbook.caesars.com/us/md/bet/betslip?selectionIds=8ad7a9db-fc30-3873-ba1a-0f9e5ab9d84e
-        return f"https://sportsbook.caesars.com/us/{state}/bet/betslip?selectionIds={selection_id}"
-    
-    @staticmethod
-    def generate_draftkings_url(event_id, outcome_id, state='md'):
-        """Generate DraftKings betslip URL"""
-        # Format: https://sportsbook.draftkings.com/event/30568752?outcomes=0QA222961856%2394388097_13L88808Q1-424241391Q20
-        return f"https://sportsbook.draftkings.com/event/{event_id}?outcomes={outcome_id}"
+    def generate_draftkings_url(event_id, market_id, outcome_id, state='md'):
+        return f"https://sportsbook.draftkings.com/{state}/event/{event_id}?category={market_id}&subcategory={outcome_id}"
 
     @classmethod
     def parse_existing_url(cls, url):
@@ -48,40 +34,44 @@ class BetslipURLGenerator:
         if 'betrivers.com' in url:
             parts = url.split('#event/')
             if len(parts) > 1:
-                event_parts = parts[1].split('?coupon=single|')
-                if len(event_parts) > 1:
-                    params['market_id'] = event_parts[0]
-                    params['selection_id'] = event_parts[1].rstrip('|')
+                event_id = parts[1].split('?')[0]
+                params['event_id'] = event_id
+                if 'market=' in url and 'outcome=' in url:
+                    params['market_id'] = url.split('market=')[1].split('&')[0]
+                    params['outcome_id'] = url.split('outcome=')[1].split('&')[0]
             return 'betrivers', params
             
         elif 'fanduel.com' in url:
-            if 'marketid[0]=' in url and 'selectionid[0]=' in url:
-                market_id = url.split('marketid[0]=')[1].split('&')[0]
-                selection_id = url.split('selectionid[0]=')[1].split('&')[0]
-                params['market_id'] = market_id
-                params['selection_id'] = selection_id
+            if '/selection/' in url:
+                selection_parts = url.split('/selection/')[1].split('?')[0].split('-')
+                if len(selection_parts) > 1:
+                    params['event_id'] = selection_parts[0]
+                    params['market_id'] = selection_parts[1]
+                if 'btag=' in url:
+                    params['outcome_id'] = url.split('btag=')[1].split('&')[0]
             return 'fanduel', params
             
         elif 'betmgm.com' in url:
-            if '/events/' in url and 'options=' in url:
-                event_id = url.split('/events/')[1].split('/?')[0]
-                selection_id = url.split('options=')[1].split('&')[0]
-                params['event_id'] = event_id
-                params['selection_id'] = selection_id
+            if '/event/' in url:
+                params['event_id'] = url.split('/event/')[1].split('?')[0]
+                if 'market=' in url and 'selection=' in url:
+                    params['market_id'] = url.split('market=')[1].split('&')[0]
+                    params['outcome_id'] = url.split('selection=')[1].split('&')[0]
             return 'betmgm', params
             
         elif 'caesars.com' in url:
-            if 'selectionids=' in url:
-                selection_id = url.split('selectionids=')[1].split('&')[0]
-                params['selection_id'] = selection_id
+            if 'id=' in url and 'market=' in url and 'selection=' in url:
+                params['event_id'] = url.split('id=')[1].split('&')[0]
+                params['market_id'] = url.split('market=')[1].split('&')[0]
+                params['outcome_id'] = url.split('selection=')[1].split('&')[0]
             return 'caesars', params
             
         elif 'draftkings.com' in url:
-            if '/event/' in url and 'outcomes=' in url:
-                event_id = url.split('/event/')[1].split('?')[0]
-                outcome_id = url.split('outcomes=')[1].split('&')[0]
-                params['event_id'] = event_id
-                params['outcome_id'] = outcome_id
+            if '/event/' in url:
+                params['event_id'] = url.split('/event/')[1].split('?')[0]
+                if 'category=' in url and 'subcategory=' in url:
+                    params['market_id'] = url.split('category=')[1].split('&')[0]
+                    params['outcome_id'] = url.split('subcategory=')[1].split('&')[0]
             return 'draftkings', params
             
         return None, {}
