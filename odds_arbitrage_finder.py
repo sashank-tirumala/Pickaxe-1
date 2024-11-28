@@ -53,8 +53,7 @@ class OddsArbitrageFinder:
             'basketball_ncaab',
             'basketball_nba',
             'icehockey_nhl',
-            'americanfootball_nfl',
-            'basketball_wnba'
+            'americanfootball_nfl'
         ]
         
         self.featured_markets = ['h2h', 'spreads', 'totals']
@@ -79,6 +78,7 @@ class OddsArbitrageFinder:
         self.regions = {
             'us': ['betmgm', 'betrivers', 'caesars', 'draftkings', 'fanduel'],
             'eu': ['pinnacle']
+            # 'us2': ['espnbet', 'hardrockbet']
         }
         
         self.low_hold_threshold = 1.03
@@ -116,12 +116,12 @@ class OddsArbitrageFinder:
                 'includeLinks': 'true'
             }
             
-            logger.info(f"Fetching US props for {sport} event {event_id}")
+            # logger.info(f"Fetching US props for {sport} event {event_id}")
             response = requests.get(url, params=us_params)
             if response.status_code == 200:
                 data = response.json()
                 us_bookmakers = data.get('bookmakers', [])
-                logger.info(f"Found {len(us_bookmakers)} US bookmakers with props")
+                # logger.info(f"Found {len(us_bookmakers)} US bookmakers with props")
                 all_bookmakers.extend(us_bookmakers)
                 
         except requests.exceptions.RequestException as e:
@@ -137,12 +137,12 @@ class OddsArbitrageFinder:
                 'includeLinks': 'true'
             }
             
-            logger.info(f"Fetching Pinnacle props for {sport} event {event_id}")
+            # logger.info(f"Fetching Pinnacle props for {sport} event {event_id}")
             response = requests.get(url, params=eu_params)
             if response.status_code == 200:
                 data = response.json()
                 eu_bookmakers = data.get('bookmakers', [])
-                logger.info(f"Found {len(eu_bookmakers)} EU bookmakers with props")
+                # logger.info(f"Found {len(eu_bookmakers)} EU bookmakers with props")
                 
                 
                             
@@ -393,7 +393,7 @@ class OddsArbitrageFinder:
         return html
 
     def process_markets(self, bookmakers, market_type):
-        """Process markets from bookmakers data with proper handling of alternate lines and URL generation"""
+        """Process markets from bookmakers data with proper handling of alternate lines"""
         markets = {}
         
         for bookmaker in bookmakers:
@@ -450,8 +450,9 @@ class OddsArbitrageFinder:
         return markets
     
     def find_opportunities(self, game, additional_odds=None):
-        """Find arbitrage and low hold opportunities with enhanced URL handling"""
         opportunities = []
+        # logging.basicConfig(level=logging.DEBUG)
+        # logger = logging.getLogger('arbitrage_finder')
         
         us_books = self.regions['us']
         all_bookmakers = game['bookmakers']
@@ -477,8 +478,8 @@ class OddsArbitrageFinder:
                             if odds1['team'] == odds2['team']:
                                 continue
                                 
-                            if odds1['bookmaker'].lower() not in [b.lower() for b in us_books] or \
-                                odds2['bookmaker'].lower() not in [b.lower() for b in us_books]:
+                            if (odds1['bookmaker'].lower() not in [b.lower() for b in us_books] or 
+                                odds2['bookmaker'].lower() not in [b.lower() for b in us_books]):
                                 continue
                                 
                             if ('spreads' in market_type or 'alternate_spreads' in market_type):
@@ -512,88 +513,6 @@ class OddsArbitrageFinder:
                                     opportunity_type = 'Arbitrage' if total_prob < 1 else 'Low Hold'
                                     profit_percentage = round(((1 / total_prob) - 1) * 100, 2) if total_prob < 1 else 0
                                     
-                                    # Generate proper betslip URLs
-                                    book1_name, params1 = self.url_generator.parse_existing_url(odds1.get('link', ''))
-                                    book2_name, params2 = self.url_generator.parse_existing_url(odds2.get('link', ''))
-                                    
-                                    # Generate Book 1 URL
-                                    if book1_name == 'betrivers':
-                                        book1_link = self.url_generator.generate_betrivers_url(
-                                            params1.get('event_id', ''),
-                                            params1.get('market_id', ''),
-                                            params1.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book1_name == 'fanduel':
-                                        book1_link = self.url_generator.generate_fanduel_url(
-                                            params1.get('event_id', ''),
-                                            params1.get('market_id', ''),
-                                            params1.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book1_name == 'betmgm':
-                                        book1_link = self.url_generator.generate_betmgm_url(
-                                            params1.get('event_id', ''),
-                                            params1.get('market_id', ''),
-                                            params1.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book1_name == 'caesars':
-                                        book1_link = self.url_generator.generate_caesars_url(
-                                            params1.get('event_id', ''),
-                                            params1.get('market_id', ''),
-                                            params1.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book1_name == 'draftkings':
-                                        book1_link = self.url_generator.generate_draftkings_url(
-                                            params1.get('event_id', ''),
-                                            params1.get('market_id', ''),
-                                            params1.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    else:
-                                        book1_link = odds1.get('link', '')
-                                    
-                                    # Generate Book 2 URL
-                                    if book2_name == 'betrivers':
-                                        book2_link = self.url_generator.generate_betrivers_url(
-                                            params2.get('event_id', ''),
-                                            params2.get('market_id', ''),
-                                            params2.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book2_name == 'fanduel':
-                                        book2_link = self.url_generator.generate_fanduel_url(
-                                            params2.get('event_id', ''),
-                                            params2.get('market_id', ''),
-                                            params2.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book2_name == 'betmgm':
-                                        book2_link = self.url_generator.generate_betmgm_url(
-                                            params2.get('event_id', ''),
-                                            params2.get('market_id', ''),
-                                            params2.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book2_name == 'caesars':
-                                        book2_link = self.url_generator.generate_caesars_url(
-                                            params2.get('event_id', ''),
-                                            params2.get('market_id', ''),
-                                            params2.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    elif book2_name == 'draftkings':
-                                        book2_link = self.url_generator.generate_draftkings_url(
-                                            params2.get('event_id', ''),
-                                            params2.get('market_id', ''),
-                                            params2.get('outcome_id', ''),
-                                            self.state
-                                        )
-                                    else:
-                                        book2_link = odds2.get('link', '')
-                                    
                                     opportunities.append({
                                         'sport': game['sport_title'],
                                         'opportunity_type': opportunity_type,
@@ -606,18 +525,107 @@ class OddsArbitrageFinder:
                                         'team1_odds': self.decimal_to_american(odds1['price']),
                                         'team1_point': odds1.get('point'),
                                         'team1_stake': round(stake1, 2),
-                                        'team1_link': book1_link,
+                                        'team1_link': odds1.get('link', ''),
                                         'team2_name': odds2['team'],
                                         'team2_book': odds2['bookmaker'],
                                         'team2_odds': self.decimal_to_american(odds2['price']),
                                         'team2_point': odds2.get('point'),
                                         'team2_stake': round(stake2, 2),
-                                        'team2_link': book2_link,
+                                        'team2_link': odds2.get('link', ''),
                                         'hold_percentage': round(hold_percentage, 2),
                                         'profit_percentage': profit_percentage
                                     })
         
+        # logger.info(f"Checking player props for {game['sport_key']} game: {game['home_team']} vs {game['away_team']}")
+        player_props = self.get_player_props(game['sport_key'], game['id'])
+        
+        if player_props:
+            prop_markets = self.process_player_props(player_props, game['sport_key'])
+            
+            for market_key, market_odds in prop_markets.items():
+                prop_type = market_odds[0]['prop_type']
+                player_name = market_odds[0]['player']
+                prop_readable = self.get_prop_description(prop_type, game['sport_key'])
+                
+                # logger.info(f"Analyzing {prop_readable} prop for {player_name}")
+                
+                odds_by_outcome = {}
+                for odds in market_odds:
+                    key = f"{odds['team']}_{odds['bookmaker']}_{odds.get('point', '')}"
+                    if key not in odds_by_outcome or odds['price'] > odds_by_outcome[key]['price']:
+                        odds_by_outcome[key] = odds
+                
+                processed_pairs = set()
+                for key1, odds1 in odds_by_outcome.items():
+                    for key2, odds2 in odds_by_outcome.items():
+                        if odds1['bookmaker'] == odds2['bookmaker']:
+                            continue
+                            
+                        if key1 != key2 and odds1['point'] == odds2['point']:
+                            if 'OVER' in odds1['team'].upper() and 'UNDER' in odds2['team'].upper():
+                                pair_key = tuple(sorted([key1, key2]))
+                                if pair_key not in processed_pairs:
+                                    processed_pairs.add(pair_key)
+                                    
+                                    prob1 = self.calculate_implied_probability(odds1['price'])
+                                    prob2 = self.calculate_implied_probability(odds2['price'])
+                                    total_prob = prob1 + prob2
+                                    
+                                    # logger.debug(f"""
+                                    #     Potential opportunity found:
+                                    #     Player: {player_name}
+                                    #     Prop: {prop_readable}
+                                    #     Book1: {odds1['bookmaker']} {odds1['team']} {odds1['point']} @ {odds1['price']} (prob: {prob1:.4f})
+                                    #     Book2: {odds2['bookmaker']} {odds2['team']} {odds2['point']} @ {odds2['price']} (prob: {prob2:.4f})
+                                    #     Total probability: {total_prob:.4f}
+                                    # """)
+                                    
+                                    if total_prob <= self.low_hold_threshold:
+                                        stake1, stake2 = self.calculate_kelly_percentage(
+                                            prob1, prob2, odds1['price'], odds2['price']
+                                        )
+                                        
+                                        hold_percentage = (total_prob - 1) * 100
+                                        opportunity_type = 'Arbitrage' if total_prob < 1 else 'Low Hold'
+                                        profit_percentage = round(((1 / total_prob) - 1) * 100, 2) if total_prob < 1 else 0
+                                        
+                                        # if profit_percentage > 10:
+                                        #     logger.warning(f"""
+                                        #         Suspiciously high profit percentage ({profit_percentage}%)!
+                                        #         Please verify this opportunity manually:
+                                        #         {player_name} {prop_readable}
+                                        #         {odds1['bookmaker']}: {odds1['team']} {odds1['point']} @ {odds1['price']}
+                                        #         {odds2['bookmaker']}: {odds2['team']} {odds2['point']} @ {odds2['price']}
+                                        #     """)
+                                        
+                                        prop_description = f"{player_name} - {prop_readable}"
+                                        
+                                        opportunities.append({
+                                            'sport': game['sport_title'],
+                                            'opportunity_type': opportunity_type,
+                                            'market_type': 'player_prop',
+                                            'prop_description': prop_description,
+                                            'market_point': odds1['point'],
+                                            'game': f"{game['home_team']} vs {game['away_team']}",
+                                            'commence_time': game['commence_time'],
+                                            'team1_name': f"{odds1['team']} ({odds1['point']})",
+                                            'team1_book': odds1['bookmaker'],
+                                            'team1_odds': self.decimal_to_american(odds1['price']),
+                                            'team1_point': odds1['point'],
+                                            'team1_stake': round(stake1, 2),
+                                            'team1_link': odds1['link'],
+                                            'team2_name': f"{odds2['team']} ({odds2['point']})",
+                                            'team2_book': odds2['bookmaker'],
+                                            'team2_odds': self.decimal_to_american(odds2['price']),
+                                            'team2_point': odds2['point'],
+                                            'team2_stake': round(stake2, 2),
+                                            'team2_link': odds2['link'],
+                                            'hold_percentage': round(hold_percentage, 2),
+                                            'profit_percentage': profit_percentage
+                                        })
+        
         return opportunities
+
     # In the find_arbitrage method, replace the spread validation with this improved version:
 
     def find_arbitrage(self, game, additional_odds=None):
@@ -718,7 +726,7 @@ class OddsArbitrageFinder:
         if additional_odds:
             all_bookmakers.extend(additional_odds)
             
-        logger.info(f"\nAnalyzing game: {game['home_team']} vs {game['away_team']}")
+        # logger.info(f"\nAnalyzing game: {game['home_team']} vs {game['away_team']}")
 
         # Check moneyline markets
         markets = self.process_markets(all_bookmakers, 'h2h')
@@ -736,16 +744,16 @@ class OddsArbitrageFinder:
             pinnacle_odds.sort(key=lambda x: x['team'])
             pinnacle_american = [self.decimal_to_american(odds['price']) for odds in pinnacle_odds]
             
-            logger.info(f"\nPinnacle moneyline odds:")
-            logger.info(f"{pinnacle_odds[0]['team']}: {pinnacle_american[0]}")
-            logger.info(f"{pinnacle_odds[1]['team']}: {pinnacle_american[1]}")
+            # logger.info(f"\nPinnacle moneyline odds:")
+            # logger.info(f"{pinnacle_odds[0]['team']}: {pinnacle_american[0]}")
+            # logger.info(f"{pinnacle_odds[1]['team']}: {pinnacle_american[1]}")
             
             # Calculate fair odds using power method
             fair_odds = power_devig(pinnacle_american)
             
-            logger.info(f"Fair odds after devigging:")
-            logger.info(f"{pinnacle_odds[0]['team']}: {fair_odds[0]}")
-            logger.info(f"{pinnacle_odds[1]['team']}: {fair_odds[1]}")
+            # logger.info(f"Fair odds after devigging:")
+            # logger.info(f"{pinnacle_odds[0]['team']}: {fair_odds[0]}")
+            # logger.info(f"{pinnacle_odds[1]['team']}: {fair_odds[1]}")
             
             # Compare US books against fair odds
             for odds in market_odds:
@@ -805,7 +813,7 @@ class OddsArbitrageFinder:
                 
                 
                 for market_key, market_odds in prop_markets.items():
-                    logger.info(f"\nAnalyzing market: {market_key}")
+                    # logger.info(f"\nAnalyzing market: {market_key}")
                     if not market_odds:
                         continue
                         
@@ -849,8 +857,8 @@ class OddsArbitrageFinder:
                         pin_under_american = self.decimal_to_american(pin_under['price'])
                         fair_odds = power_devig([pin_over_american, pin_under_american])
                         
-                        logger.info(f"\nLine {point}: Pinnacle Over/Under {pin_over_american}/{pin_under_american}")
-                        logger.info(f"Fair odds: {fair_odds[0]}/{fair_odds[1]}")
+                        # logger.info(f"\nLine {point}: Pinnacle Over/Under {pin_over_american}/{pin_under_american}")
+                        # logger.info(f"Fair odds: {fair_odds[0]}/{fair_odds[1]}")
                         
                         # Check all books at this point
                         for odds in market_odds:
@@ -982,10 +990,6 @@ class OddsArbitrageFinder:
             df = pd.DataFrame(self.all_opportunities)
             df['timestamp'] = datetime.now(timezone.utc)
             
-            # Add prop_description column if it doesn't exist
-            if 'prop_description' not in df.columns:
-                df['prop_description'] = None
-            
             columns = [
                 'opportunity_type', 'hold_percentage', 
                 'sport', 'market_type', 'prop_description',
@@ -996,7 +1000,6 @@ class OddsArbitrageFinder:
             ]
             return df[columns]
         else:
-            # Create empty DataFrame with all required columns
             return pd.DataFrame(columns=[
                 'opportunity_type', 'hold_percentage', 
                 'sport', 'market_type', 'prop_description',
@@ -1097,95 +1100,43 @@ class OddsArbitrageFinder:
             odds1_class = 'odds-negative' if row['team1_odds'] < 0 else 'odds-positive'
             odds2_class = 'odds-negative' if row['team2_odds'] < 0 else 'odds-positive'
             
-            # Parse existing URLs
             book1_name, params1 = self.url_generator.parse_existing_url(row['team1_link'])
             book2_name, params2 = self.url_generator.parse_existing_url(row['team2_link'])
             
-            # Generate Book 1 URL
-            if book1_name:
-                if book1_name == 'betrivers':
-                    book1_link = self.url_generator.generate_betrivers_url(
-                        params1.get('event_id', ''),
-                        params1.get('market_id', ''),
-                        params1.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book1_name == 'fanduel':
-                    book1_link = self.url_generator.generate_fanduel_url(
-                        params1.get('event_id', ''),
-                        params1.get('market_id', ''),
-                        params1.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book1_name == 'betmgm':
-                    book1_link = self.url_generator.generate_betmgm_url(
-                        params1.get('event_id', ''),
-                        params1.get('market_id', ''),
-                        params1.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book1_name == 'caesars':
-                    book1_link = self.url_generator.generate_caesars_url(
-                        params1.get('event_id', ''),
-                        params1.get('market_id', ''),
-                        params1.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book1_name == 'draftkings':
-                    book1_link = self.url_generator.generate_draftkings_url(
-                        params1.get('event_id', ''),
-                        params1.get('market_id', ''),
-                        params1.get('outcome_id', ''),
-                        self.state
-                    )
-                else:
-                    book1_link = row['team1_link']
-            else:
-                book1_link = row['team1_link']
-                
-            # Generate Book 2 URL
-            if book2_name:
-                if book2_name == 'betrivers':
-                    book2_link = self.url_generator.generate_betrivers_url(
-                        params2.get('event_id', ''),
-                        params2.get('market_id', ''),
-                        params2.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book2_name == 'fanduel':
-                    book2_link = self.url_generator.generate_fanduel_url(
-                        params2.get('event_id', ''),
-                        params2.get('market_id', ''),
-                        params2.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book2_name == 'betmgm':
-                    book2_link = self.url_generator.generate_betmgm_url(
-                        params2.get('event_id', ''),
-                        params2.get('market_id', ''),
-                        params2.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book2_name == 'caesars':
-                    book2_link = self.url_generator.generate_caesars_url(
-                        params2.get('event_id', ''),
-                        params2.get('market_id', ''),
-                        params2.get('outcome_id', ''),
-                        self.state
-                    )
-                elif book2_name == 'draftkings':
-                    book2_link = self.url_generator.generate_draftkings_url(
-                        params2.get('event_id', ''),
-                        params2.get('market_id', ''),
-                        params2.get('outcome_id', ''),
-                        self.state
-                    )
-                else:
-                    book2_link = row['team2_link']
-            else:
-                book2_link = row['team2_link']
+            book1_link = row['team1_link']
+            book2_link = row['team2_link']
             
-            # Generate table row HTML
+            # Process URLs with the state parameter
+            if book1_name:
+                if book1_name == 'betrivers' and params1.get('market_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_betrivers_url(params1['market_id'], params1['selection_id'], self.state)
+                    book1_link.replace('{state}', self.state)
+                elif book1_name == 'fanduel' and params1.get('market_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_fanduel_url(params1['market_id'], params1['selection_id'], self.state)
+                elif book1_name == 'betmgm' and params1.get('event_id') and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_betmgm_url(params1['event_id'], params1['selection_id'], self.state)
+                    book1_link.replace('{state}', self.state)
+                elif book1_name == 'caesars' and params1.get('selection_id'):
+                    book1_link = self.url_generator.generate_caesars_url(params1['selection_id'], self.state)
+                    book1_link.replace('{state}', self.state)
+                elif book1_name == 'draftkings' and params1.get('event_id') and params1.get('outcome_id'):
+                    book1_link = self.url_generator.generate_draftkings_url(params1['event_id'], params1['outcome_id'], self.state)
+            
+            if book2_name:
+                if book2_name == 'betrivers' and params2.get('market_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_betrivers_url(params2['market_id'], params2['selection_id'], self.state)
+                    book2_link.replace('{state}', self.state)
+                elif book2_name == 'fanduel' and params2.get('market_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_fanduel_url(params2['market_id'], params2['selection_id'], self.state)
+                elif book2_name == 'betmgm' and params2.get('event_id') and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_betmgm_url(params2['event_id'], params2['selection_id'], self.state)
+                    book2_link.replace('{state}', self.state)
+                elif book2_name == 'caesars' and params2.get('selection_id'):
+                    book2_link = self.url_generator.generate_caesars_url(params2['selection_id'], self.state)
+                    book2_link.replace('{state}', self.state)
+                elif book2_name == 'draftkings' and params2.get('event_id') and params2.get('outcome_id'):
+                    book2_link = self.url_generator.generate_draftkings_url(params2['event_id'], params2['outcome_id'], self.state)
+            
             html += f"""
                 <tr class="{row_class}">
                     <td><span class="type-badge {badge_class}">{row['opportunity_type']}</span></td>
@@ -1646,7 +1597,6 @@ class OddsArbitrageFinder:
         return html
     
     def generate_html(self, df):
-        # Previous style and structure remains the same until the body section
         html = """
         <!DOCTYPE html>
         <html>
@@ -1749,145 +1699,152 @@ class OddsArbitrageFinder:
                 .tab-content.active {
                     display: block;
                 }
-                .odds-screen {
+                .calculator {
                     background: white;
                     border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                     padding: 20px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .filters {
                     margin-bottom: 20px;
                 }
-                .filters select {
-                    padding: 8px;
-                    margin-right: 10px;
-                    border-radius: 4px;
-                    border: 1px solid #ddd;
+                .input-group {
+                    margin-bottom: 15px;
                 }
-                .bookmaker-filter {
-                    background: white;
-                    border-radius: 8px;
-                    padding: 15px;
-                    margin-bottom: 20px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .filter-label {
+                .calculator label {
+                    display: block;
+                    margin-bottom: 5px;
                     font-weight: bold;
-                    margin-bottom: 10px;
+                    color: #2c5282;
                 }
-                .bookmaker-checkboxes {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 15px;
+                .calculator input {
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    font-family: inherit;
                 }
-                .bookmaker-checkbox {
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                    padding: 5px 10px;
+                .results {
+                    margin-top: 20px;
+                    padding: 15px;
                     background: #f8f9fa;
+                    border-radius: 4px;
+                    border: 1px solid #e0e0e0;
+                }
+                .result-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                    padding: 8px;
+                    border-bottom: 1px solid #eee;
+                }
+                .result-row:last-child {
+                    border-bottom: none;
+                }
+                .result-label {
+                    font-weight: bold;
+                    color: #2c5282;
+                }
+                .profit-section {
+                    background-color: #e8f5e9;
+                    padding: 15px;
+                    border-radius: 4px;
+                    margin-top: 15px;
+                }
+                .calculator button {
+                    width: 100%;
+                    padding: 10px;
+                    background-color: #2c5282;
+                    color: white;
+                    border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    user-select: none;
-                }
-                .bookmaker-checkbox:hover {
-                    background: #e9ecef;
-                }
-                .book-filter { margin: 0; }
-                .odds-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 13px;
-                }
-                .odds-table th, .odds-table td {
-                    padding: 6px;
-                    text-align: center;
-                    border: 1px solid #ddd;
-                    white-space: nowrap;
-                }
-                .game-info {
-                    text-align: left;
-                    background: #f8f9fa;
-                    position: sticky;
-                    left: 0;
-                    z-index: 2;
-                    padding: 8px;
-                }
-                .book-column {
-                    min-width: 70px;
-                    font-size: 12px;
-                    position: sticky;
-                    top: 0;
-                    background: #f5f5f5;
-                    z-index: 1;
-                }
-                .game-datetime {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                    margin-bottom: 2px;
-                }
-                .game-date { font-weight: bold; color: #2c5282; }
-                .game-time { font-size: 11px; color: #666; }
-                .game-name { font-weight: 600; font-size: 13px; }
-                .odds-cell { padding: 4px 6px; }
-                .team-odds {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 4px;
-                    padding: 2px;
-                }
-                .odds {
-                    font-weight: bold;
-                    text-decoration: none;
                     font-size: 14px;
-                    padding: 2px 6px;
-                    border-radius: 3px;
+                    font-family: inherit;
                 }
-                .point { font-size: 12px; color: #666; margin-right: 4px; }
-                .fair-odds-column {
-                    min-width: 70px;
-                    font-size: 12px;
-                    position: sticky;
-                    top: 0;
-                    background: #f5f5f5;
-                    z-index: 1;
-                    border-right: 2px solid #ddd;
+                .calculator button:hover {
+                    background-color: #2a4365;
                 }
-                .fair-odds-cell {
-                    background-color: #f8f9fa;
-                    border-right: 2px solid #ddd;
-                }
-                .fair-odds-value {
-                    font-style: italic;
-                    opacity: 0.9;
-                }
-                .value-odds {
-                    background-color: #c3e6cb;
-                    box-shadow: 0 0 0 1px #28a745;
+                .calculator h2 {
+                    color: #2c5282;
+                    margin-bottom: 20px;
+                    font-size: 1.5em;
                 }
             </style>
         </head>
         <body>"""
         
-        # Add the bookmaker filter
         html += self.generate_bookmaker_filter()
         
-        # Add the tabs
         html += """
             <div class="tabs">
+                <button class="tab-button" data-tab="promos">Promos</button>
                 <button class="tab-button active" data-tab="opportunities">Arbitrage</button>
                 <button class="tab-button" data-tab="plus-ev">+EV Bets</button>
                 <button class="tab-button" data-tab="odds-screen">Odds Screen</button>
             </div>"""
             
-        # Generate all content
         opportunities_content = self.generate_opportunities_html(df)
         plus_ev_content = self.generate_plus_ev_html(self.all_plus_ev)
         odds_screen_content = self.generate_odds_screen_html(self.all_odds_data)
         
-        # Add the content sections
+        calculator_content = """
+            <div id="promos" class="tab-content container">
+            <div style="display: flex; gap: 20px; justify-content: center;">
+                <div style="width: 600px;">
+                    <h2>Initial Risk-Free Bet Hedge</h2>
+                    <div class="calculator">
+                        <div class="input-group">
+                            <label for="odds1">Odds 1 (+)</label>
+                            <input type="number" id="odds1" placeholder="e.g., 200">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="odds2">Odds 2 (-)</label>
+                            <input type="number" id="odds2" placeholder="e.g., -200">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="bonusAmount">Bonus Amount ($)</label>
+                            <input type="number" id="bonusAmount" placeholder="e.g., 500">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="estimatedBonusValue">Estimated Bonus Value (%)</label>
+                            <input type="number" id="estimatedBonusValue" placeholder="e.g., 60">
+                        </div>
+                        
+                        <button onclick="calculateRiskFree()">Calculate Initial Hedge</button>
+                        
+                        <div class="results" id="riskFreeResults"></div>
+                    </div>
+                </div>
+
+                <div style="width: 600px;">
+                    <h2>Bonus Bet Hedge</h2>
+                    <div class="calculator">
+                        <div class="input-group">
+                            <label for="bonusBetSize">Bonus Bet Size ($)</label>
+                            <input type="number" id="bonusBetSize" placeholder="e.g., 500">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="bonusOddsPlus">Plus Odds (+)</label>
+                            <input type="number" id="bonusOddsPlus" placeholder="e.g., 200">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="bonusOddsMinus">Minus Odds (-)</label>
+                            <input type="number" id="bonusOddsMinus" placeholder="e.g., -200">
+                        </div>
+                        
+                        <button onclick="calculateBonus()">Calculate Bonus Bet Hedge</button>
+                        
+                        <div class="results" id="bonusResults"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
+        
         html += f"""
             <div id="opportunities" class="tab-content active">
                 {opportunities_content}
@@ -1899,9 +1856,10 @@ class OddsArbitrageFinder:
             
             <div id="plus-ev" class="tab-content">
                 {plus_ev_content}
-            </div>"""
+            </div>
+            
+            {calculator_content}"""
         
-        # Add the JavaScript
         html += """
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
@@ -1923,7 +1881,6 @@ class OddsArbitrageFinder:
                     const selectedBooks = Array.from(document.querySelectorAll('.book-filter:checked'))
                         .map(checkbox => checkbox.value.toLowerCase());
                     
-                    // Apply to opportunities table
                     const opportunitiesTable = document.getElementById('opportunities-table');
                     if (opportunitiesTable) {
                         opportunitiesTable.querySelectorAll('tr:not(:first-child)').forEach(row => {
@@ -1938,7 +1895,6 @@ class OddsArbitrageFinder:
                         });
                     }
                     
-                    // Apply to plus-EV table
                     const plusEvTable = document.getElementById('plus-ev-table');
                     if (plusEvTable) {
                         plusEvTable.querySelectorAll('tr:not(:first-child)').forEach(row => {
@@ -1950,7 +1906,6 @@ class OddsArbitrageFinder:
                         });
                     }
                     
-                    // Apply to odds screen
                     const oddsCells = document.querySelectorAll('.odds-cell');
                     oddsCells.forEach(cell => {
                         const book = cell.getAttribute('data-book')?.toLowerCase();
@@ -1979,6 +1934,81 @@ class OddsArbitrageFinder:
                     
                     document.getElementById(tabId).classList.add('active');
                     document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+                }
+                
+                function calculateRiskFree() {
+                    const odds1 = parseFloat(document.getElementById('odds1').value);
+                    const odds2 = parseFloat(document.getElementById('odds2').value);
+                    const bonusAmount = parseFloat(document.getElementById('bonusAmount').value);
+                    const estimatedBonusValue = parseFloat(document.getElementById('estimatedBonusValue').value);
+
+                    const bonusValueDollars = (bonusAmount * estimatedBonusValue) / 100;
+                    const bet1Amount = bonusAmount;
+                    const bet1Payout = bet1Amount * (1 + odds1/100);
+                    const bet2Amount = (bet1Payout - bonusValueDollars) / (1 - 100/odds2);
+                    const bet2TotalPayout = bet2Amount * (1 - 100/odds2);
+                    const profitIfBet1Wins = bet1Payout - bet1Amount - bet2Amount;
+                    const profitIfBet2Wins = bet2TotalPayout - bet2Amount - bet1Amount + bonusValueDollars;
+
+                    document.getElementById('riskFreeResults').innerHTML = `
+                        <div class="result-row">
+                            <span class="result-label">Estimated Bonus Value:</span>
+                            <span>$${bonusValueDollars.toFixed(2)}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Bet Amount 1:</span>
+                            <span>$${bet1Amount.toFixed(2)}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Bet Amount 2:</span>
+                            <span>$${bet2Amount.toFixed(2)}</span>
+                        </div>
+                        <div class="profit-section">
+                            <h3>Profit Scenarios</h3>
+                            <div class="result-row">
+                                <span class="result-label">If Bet 1 (+${odds1}) wins:</span>
+                                <span>$${profitIfBet1Wins.toFixed(2)}</span>
+                            </div>
+                            <div class="result-row">
+                                <span class="result-label">If Bet 2 (${odds2}) wins:</span>
+                                <span>$${profitIfBet2Wins.toFixed(2)} (includes bonus value)</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                function calculateBonus() {
+                    const bonusSize = parseFloat(document.getElementById('bonusBetSize').value);
+                    const plusOdds = parseFloat(document.getElementById('bonusOddsPlus').value);
+                    const minusOdds = parseFloat(document.getElementById('bonusOddsMinus').value);
+
+                    if (!bonusSize || !plusOdds || !minusOdds || plusOdds <= 0 || minusOdds >= 0) {
+                        alert("Please fill in all fields correctly. Plus odds must be positive, minus odds must be negative!");
+                        return;
+                    }
+
+                    const plusOddsDecimal = 1 + plusOdds / 100;
+                    const minusOddsDecimal = 1 - 100 / minusOdds;
+                    const bonusBetProfit = bonusSize * plusOddsDecimal - bonusSize;
+                    const hedgeBet = bonusBetProfit / minusOddsDecimal;
+                    const guaranteedProfit = bonusSize * plusOddsDecimal - bonusSize - hedgeBet;
+
+                    document.getElementById('bonusResults').innerHTML = `
+                        <div class="result-row">
+                            <span class="result-label">Place bonus bet of:</span>
+                            <span>$${bonusSize.toFixed(2)} on +${plusOdds}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Place hedge bet of:</span>
+                            <span>$${hedgeBet.toFixed(2)} on ${minusOdds}</span>
+                        </div>
+                        <div class="profit-section">
+                            <div class="result-row">
+                                <span class="result-label">Guaranteed Profit:</span>
+                                <span>$${guaranteedProfit.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    `;
                 }
                 
                 function initializeOddsScreenFilters() {
@@ -2027,7 +2057,6 @@ class OddsArbitrageFinder:
                         }
                     });
                     
-                    // Reapply bookmaker filters after updating odds display
                     applyGlobalFilters();
                 }
                 
@@ -2075,16 +2104,13 @@ class OddsArbitrageFinder:
         
         return html
     
-   
-
-
 
 def main():
     # Replace with your API key
     with open('key.txt', 'r') as file:
         api_key = file.read().strip()
     
-    arbitrage_finder = OddsArbitrageFinder(api_key, state='md')
+    arbitrage_finder = OddsArbitrageFinder(api_key)
     arbitrage_table = arbitrage_finder.generate_arbitrage_table()
     
     # Generate HTML

@@ -1,8 +1,7 @@
-class BetslipURLGenerator:
+class BetslipURLGenerator():
     """
     Utility class to generate betslip URLs for different sportsbooks
     """
-    
     @staticmethod
     def generate_betrivers_url(event_id, market_id, outcome_id, state='md'):
         """Generate BetRivers betslip URL"""
