@@ -1780,6 +1780,7 @@ class OddsArbitrageFinder:
                 <button class="tab-button active" data-tab="opportunities">Arbitrage</button>
                 <button class="tab-button" data-tab="plus-ev">+EV Bets</button>
                 <button class="tab-button" data-tab="odds-screen">Odds Screen</button>
+                
             </div>"""
             
         opportunities_content = self.generate_opportunities_html(df)
