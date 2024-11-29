@@ -2,6 +2,7 @@ from flask import Flask, render_template_string
 import pandas as pd
 from datetime import datetime
 from odds_arbitrage_finder import OddsArbitrageFinder
+import os
 
 app = Flask(__name__)
 
@@ -1030,4 +1031,5 @@ def index():
     """, arb_cards_html=arb_cards_html, plus_ev_cards_html=plus_ev_cards_html, bookmaker_filter_html=bookmaker_filter_html)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
