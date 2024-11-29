@@ -151,7 +151,7 @@ class OpportunitiesGenerator:
                         <div class="bet-row">
                             <div class="bet-number">1</div>
                             <div class="bet-selection">{team_text}</div>
-                            <div class="{odds_class}">{opp['odds']}</div>
+                            <div class="{odds_class}">{'+' if opp['odds'] > 0 else ''}{opp['odds']}</div>
                             <img src="{self.get_book_logo(opp['bookmaker'])}" alt="{opp['bookmaker']}" class="book-logo">
                             <div class="stake-amount">$100</div>
                             <a href="{opp['link']}" target="_blank" class="bet-button">BET ↗</a>
@@ -257,17 +257,17 @@ class OpportunitiesGenerator:
                         <div class="bet-row">
                             <div class="bet-number">1</div>
                             <div class="bet-selection">{bet1_text}</div>
-                            <div class="{odds1_class}">{row['team1_odds']}</div>
+                            <div class="{odds1_class}">{'+' if row['team1_odds'] > 0 else ''}{row['team1_odds']}</div>
                             <img src="{self.get_book_logo(row['team1_book'])}" alt="{row['team1_book']}" class="book-logo">
-                            <div class="stake-amount">${row['team1_stake']:.0f}</div>
+                            <div class="stake-amount">{row['team1_stake']:.0f}%</div>
                             <a href="{row['team1_link']}" target="_blank" class="bet-button">BET ↗</a>
                         </div>
                         <div class="bet-row">
                             <div class="bet-number">2</div>
                             <div class="bet-selection">{bet2_text}</div>
-                            <div class="{odds2_class}">{row['team2_odds']}</div>
+                            <div class="{odds2_class}">{'+' if row['team2_odds'] > 0 else ''}{row['team2_odds']}</div>
                             <img src="{self.get_book_logo(row['team2_book'])}" alt="{row['team2_book']}" class="book-logo">
-                            <div class="stake-amount">${row['team2_stake']:.0f}</div>
+                            <div class="stake-amount">{row['team2_stake']:.0f}%</div>
                             <a href="{row['team2_link']}" target="_blank" class="bet-button">BET ↗</a>
                         </div>
                     </td>
