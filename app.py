@@ -86,7 +86,7 @@ class OpportunitiesGenerator:
     
     def generate_bookmaker_filter(self):
         """Generate HTML for bookmaker filter section"""
-        bookmakers = ['betmgm', 'betrivers', 'caesars', 'draftkings', 'fanduel']
+        bookmakers = ['betmgm', 'betrivers', 'caesars', 'draftkings', 'fanduel', 'pinnacle']
         
         html = """
         <div class="filters">
@@ -289,7 +289,7 @@ class OpportunitiesGenerator:
             'betmgm': '/static/images/betmgm-logo.png',
             'caesars': '/static/images/caesars-logo.png',
             'betrivers': '/static/images/betrivers-logo.png',
-            'pinnacle': '/statoc/images/pinnacle-logo.png'
+            'pinnacle': '/static/images/pinnacle-logo.png'
         }
         return book_logos.get(bookmaker.lower(), '/static/images/default-logo.png')
 
