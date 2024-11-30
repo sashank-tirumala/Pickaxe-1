@@ -1,8 +1,9 @@
 Flask==2.0.1
+Werkzeug==2.0.1
 pandas==1.3.3
+numpy==1.21.6  # Added specific numpy version compatible with pandas 1.3.3
 requests==2.26.0
 gunicorn==20.1.0
 python-dotenv==1.0.0
-Werkzeug==2.0.1
-pytz==2024.2   
-python-dateutil==2.9.0  
+pytz==2024.2
+python-dateutil==2.9.0
