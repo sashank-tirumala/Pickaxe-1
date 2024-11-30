@@ -4,6 +4,8 @@ from datetime import datetime
 from odds_arbitrage_finder import OddsArbitrageFinder
 import os
 from dotenv import load_dotenv
+from functools import lru_cache
+import time
 
 app = Flask(__name__)
 load_dotenv()
@@ -295,14 +297,24 @@ class OpportunitiesGenerator:
         }
         return book_logos.get(bookmaker.lower(), '/static/images/default-logo.png')
 
-# Assume you have a function to get the opportunities data
+@lru_cache(maxsize=1)
+def get_cached_timestamp():
+    return time.time()
+
+def should_refresh_cache():
+    last_fetch = get_cached_timestamp()
+    current_time = time.time()
+    return (current_time - last_fetch) >= 300  # 5 minutes
+
+@lru_cache(maxsize=1)
 def get_data():
+    """Cache the API response"""
+    get_cached_timestamp()  # Update timestamp
     api_key = os.getenv('ODDS_API_KEY')
     
     arbitrage_finder = OddsArbitrageFinder(api_key)
     arbitrage_table = arbitrage_finder.generate_arbitrage_table()
     return arbitrage_table, arbitrage_finder.all_plus_ev
-
 
 # Initialize the opportunities generator
 opportunities_generator = OpportunitiesGenerator()
