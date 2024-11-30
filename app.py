@@ -3,8 +3,10 @@ import pandas as pd
 from datetime import datetime
 from odds_arbitrage_finder import OddsArbitrageFinder
 import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
+load_dotenv()
 
 # Assume this is your existing class with the URL generator
 class URLGenerator:
@@ -295,8 +297,7 @@ class OpportunitiesGenerator:
 
 # Assume you have a function to get the opportunities data
 def get_data():
-    with open('key.txt', 'r') as file:
-        api_key = file.read().strip()
+    api_key = os.getenv('ODDS_API_KEY')
     
     arbitrage_finder = OddsArbitrageFinder(api_key)
     arbitrage_table = arbitrage_finder.generate_arbitrage_table()
