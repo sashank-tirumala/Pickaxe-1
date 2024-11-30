@@ -609,7 +609,7 @@ def index():
                 
                 .bet-row {
                     display: grid;
-                    grid-template-columns: 20px minmax(200px, 300px) 80px 40px 80px 100px 40px; /* Added column for calculator */
+                    grid-template-columns: 50px minmax(200px, 300px) 80px 40px 80px 100px 40px; /* Added column for calculator */
                     align-items: center;
                     gap: 12px;
                     min-height: 40px; /* Increased minimum height */
@@ -787,7 +787,7 @@ def index():
         <body>
             <div class="container">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h1 style="color: var(--text-primary); margin: 0;">IcyPicks</h1>
+                    <h1 style="color: var(--text-primary); margin: 0; ">IcyPicks</h1>
                     <button id="refreshButton" class="refresh-button">
                         <span class="refresh-icon">↻</span>
                         Refresh
@@ -913,8 +913,8 @@ def index():
                     // Refresh button click handler
                     refreshButton.addEventListener('click', refreshData);
                     
-                    // Auto refresh every hour instead of every minute
-                    setInterval(refreshData, 3600000);            
+                    // Auto refresh every 4 hours instead of every minute
+                    setInterval(refreshData, 14400000);            
 
                     // Tab switching
                     document.querySelectorAll('.tab-button').forEach(button => {
