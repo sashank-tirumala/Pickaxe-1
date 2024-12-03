@@ -2108,9 +2108,7 @@ class OddsArbitrageFinder:
 
 def main():
     # Replace with your API key
-    with open('key.txt', 'r') as file:
-        api_key = file.read().strip()
-    
+    api_key = os.getenv('ODDS_API_KEY')
     arbitrage_finder = OddsArbitrageFinder(api_key)
     arbitrage_table = arbitrage_finder.generate_arbitrage_table()
     
